@@ -1,9 +1,14 @@
 using System;
+using System.CodeDom;
 using System.IO;
 using System.CodeDom.Compiler;
 using Microsoft.CSharp;
 using System.Collections.Generic;
+using System.Configuration;
+using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography.X509Certificates;
 
 namespace rosidl_generator_cs
 {
@@ -24,6 +29,8 @@ namespace rosidl_generator_cs
 		//TODO increase perfomance by parsing all messages in a package at once
 		public static void Main (string[] args)
 		{
+		    //TestMethod();
+
 			bool IsService = false;
 			//Check the amount of arguments
 			if (args.Length < 1) {
@@ -160,28 +167,36 @@ namespace rosidl_generator_cs
 			foreach (var pathElement in pathElements) {
 
 
-                Action<string> searchPath = (string path) => {
-					foreach (var item in Directory.GetFiles(path))
-					{
-						//A dll could be an assembly
-						if (Path.GetExtension(item) == ".dll")
-						{
-							try
-							{
-								//Try loading the assembly -> if it works it is an assembly if not it's just normal dll
-								System.Reflection.AssemblyName testAssembly = System.Reflection.AssemblyName.GetAssemblyName(item);
-								Console.WriteLine(testAssembly.FullName);
-                                if (testAssembly.Name != AssemblyName)
-                                    cp.ReferencedAssemblies.Add(item);
-							}
-							catch (Exception ex)
-							{
-                                //Ignore warning...
-                                ex.ToString();
-							}
-						}
-					}
-
+                Action<string> searchPath = (string path) =>
+                {
+                    // OMNI_UV
+                    if (Directory.Exists(path))
+                    {
+                        // OMNI_UV
+                        foreach (var item in Directory.GetFiles(path))
+                        {
+                            //A dll could be an assembly
+                            if (Path.GetExtension(item) == ".dll")
+                            {
+                                try
+                                {
+                                    //Try loading the assembly -> if it works it is an assembly if not it's just normal dll
+                                    System.Reflection.AssemblyName testAssembly =
+                                        System.Reflection.AssemblyName.GetAssemblyName(item);
+                                    Console.WriteLine(testAssembly.FullName);
+                                    if (testAssembly.Name != AssemblyName)
+                                        cp.ReferencedAssemblies.Add(item);
+                                }
+                                catch (Exception ex)
+                                {
+                                    //Ignore warning...
+                                    ex.ToString();
+                                }
+                            }
+                        }
+                    // OMNI_UV
+                    }
+                    // OMNI_UV
                 };
 
 				//Look into the lib folder
@@ -246,7 +261,86 @@ namespace rosidl_generator_cs
 		public static CompilerResults Compile (CompilerParameters cp, List<String> files, CSharpCodeProvider provider)
 		{
 			return  provider.CompileAssemblyFromFile (cp, files.ToArray ());
-		}
-	}
+		}/*
+
+	    public struct rosidl_generator_c__primitive_array_float64
+        {
+            IntPtr test3;
+
+            public void SetTest3(int @int)
+            {
+                test3 = new IntPtr(@int);
+            }
+
+            public IntPtr GetTest3()
+            {
+                return test3;
+            }
+        }
+
+	    public struct TypicalService_Request_t
+        {
+	        public rosidl_generator_c__primitive_array_float64 test2;
+	    }
+
+	    public static void TestMethod()
+	    {
+	        var request = new TypicalService_Request_t();
+	        request.test2.SetTest3(3);
+
+	        Console.WriteLine("Init - " + request.GetType());
+
+	        var type = request.GetType();
+	        var publicItems = type.GetFields();
+            var privateItems = type.GetFields(BindingFlags.Instance | BindingFlags.NonPublic);
+
+	        var totalItems = new FieldInfo[publicItems.Length + privateItems.Length];
+	        publicItems.CopyTo(totalItems, 0);
+	        privateItems.CopyTo(totalItems, publicItems.Length);
+
+	        foreach (var item in totalItems)
+	        {
+	            var itemType = item.FieldType;
+                if (typeof(IntPtr) == itemType)
+	            {
+                    Console.WriteLine("Here1");
+	            }
+
+	            var itemPublicItems = itemType.GetFields();
+	            var itemPrivateItems = itemType.GetFields(BindingFlags.Instance | BindingFlags.NonPublic);
+
+                var itemTotalItems = new FieldInfo[itemPublicItems.Length + itemPrivateItems.Length];
+	            itemPublicItems.CopyTo(itemTotalItems, 0);
+	            itemPrivateItems.CopyTo(itemTotalItems, itemPublicItems.Length);
+
+	            foreach (var itemSecondLevel in itemTotalItems)
+	            {
+	                var itemTypeSecondLevel = itemSecondLevel.FieldType;
+	                if (typeof(IntPtr) == itemTypeSecondLevel)
+	                {
+	                    Console.WriteLine("Here2");
+
+	                    var avant = request.test2.GetTest3();
+
+                        var itemValue = item.GetValue(request);
+
+                        itemSecondLevel.SetValue(itemValue, IntPtr.Zero);
+
+	                    object boxed = request;
+
+                        item.SetValue(boxed, itemValue);
+
+	                    request = boxed;
+	                    
+                        //itemSecondLevel.SetValue(@this.test2, IntPtr.Zero);
+	                    var apres = request.test2.GetTest3();
+                    }
+                }
+
+	            var test = request.test2.GetTest3();
+                Console.WriteLine(test);
+            }
+        }*/
+    }
 }
 

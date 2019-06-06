@@ -4,6 +4,7 @@ using System.Reflection;
 using System.IO;
 using System.CodeDom;
 using System.CodeDom.Compiler;
+using System.Runtime.InteropServices;
 using Microsoft.CSharp;
 
 namespace rosidl_generator_cs
@@ -40,6 +41,7 @@ namespace rosidl_generator_cs
 			MessageNamespace.Imports.Add(new CodeNamespaceImport("System"));
 			MessageNamespace.Imports.Add(new CodeNamespaceImport("rclcs"));
 			MessageNamespace.Imports.Add(new CodeNamespaceImport("System.Runtime.InteropServices"));
+            MessageNamespace.Imports.Add(new CodeNamespaceImport("System.Reflection"));
 
 			//Create the message struct
 			MessageStruct = new CodeTypeDeclaration(description.StructName);
@@ -70,6 +72,10 @@ namespace rosidl_generator_cs
 			AddTypeIntrospectionMethod(description);
 			//Add the free method needed for memory handling
 			AddFreeMethod();
+            //Add the Init method to init the members of the struct
+            //AddInitMethod();
+            //AddImplicitCastFromObject(description);
+
 			//Add the struct to the namespace
 			MessageNamespace.Types.Add(MessageStruct);
 			MessageNamespace.Types.Add(MessageArrayStruct);
@@ -78,7 +84,7 @@ namespace rosidl_generator_cs
 
 			//Create the wrapper class
 			MessageClass = new CodeTypeDeclaration(description.Name);
-			MessageClass.IsClass = true;
+			MessageClass.IsStruct = true;
 			MessageClass.BaseTypes.Add("MessageWrapper");
 
 			//Add fields to the message wrapper class
@@ -174,7 +180,7 @@ namespace rosidl_generator_cs
 			CodeMemberField memberField = new CodeMemberField();
 
 			//Set it to public
-			memberField.Attributes = MemberAttributes.Public;
+			memberField.Attributes = MemberAttributes.Public | MemberAttributes.Final; ;
 			//Set the member name
 			memberField.Name = "array_ptr";
 			//Set the member type 
@@ -185,7 +191,7 @@ namespace rosidl_generator_cs
 			memberField = new CodeMemberField();
 
 			//Set it to public
-			memberField.Attributes = MemberAttributes.Public;
+			memberField.Attributes = MemberAttributes.Public | MemberAttributes.Final; ;
 			//Set the member name
 			memberField.Name = "size";
 			//Set the member type 
@@ -196,7 +202,7 @@ namespace rosidl_generator_cs
 			memberField = new CodeMemberField();
 
 			//Set it to public
-			memberField.Attributes = MemberAttributes.Public;
+			memberField.Attributes = MemberAttributes.Public | MemberAttributes.Final; ;
 			//Set the member name
 			memberField.Name = "capacity";
 			//Set the member type 
@@ -221,7 +227,7 @@ namespace rosidl_generator_cs
 				CodeMemberField memberField = new CodeMemberField();
 				memberField.Comments.Add(new CodeCommentStatement("Nested member: " + member.RosType));
 				//Set it to public
-				memberField.Attributes = MemberAttributes.Public;
+				memberField.Attributes = MemberAttributes.Public | MemberAttributes.Final;
 				//Set the member name
 				memberField.Name = member.Name;
 				//Set the member type 
@@ -248,7 +254,7 @@ namespace rosidl_generator_cs
 				CodeMemberField memberField = new CodeMemberField();
 				memberField.Comments.Add(new CodeCommentStatement("Standard member: " + member.RosType));
 				//Set it to public
-				memberField.Attributes = MemberAttributes.Public;
+				memberField.Attributes = MemberAttributes.Public | MemberAttributes.Final;
 				//Set the member name
 				memberField.Name = member.Name;
 				//Set the member type 
@@ -285,17 +291,17 @@ namespace rosidl_generator_cs
 				string tempName = description.Name.Replace("_", "");
 				tempName = tempName.Replace("Request", "");
 				tempName = tempName.Replace("Response", "");
-				introspectionMethodName = "rosidl_typesupport_introspection_c__get_service_type_support_handle__" + description.Namespace + "__srv__" + tempName;
+				introspectionMethodName = "rosidl_typesupport_fastrtps_c__get_service_type_support_handle__" + description.Namespace + "__srv__" + tempName;
 			}
 			else
 			{
-				introspectionMethodName = " rosidl_typesupport_introspection_c__get_message_type_support_handle__" + description.Namespace + "__msg__" + description.Name;
+				introspectionMethodName = " rosidl_typesupport_fastrtps_c__get_message_type_support_handle__" + description.Namespace + "__msg__" + description.Name;
 			}
 			if (Environment.OSVersion.Platform == PlatformID.Unix) {
 				introspectionMethod.Text = "        [DllImport (\"lib" + description.Namespace + "__rosidl_typesupport_c.so\")]\n" +
 				"        public static extern IntPtr " + introspectionMethodName + "();";
 			} else if (Environment.OSVersion.Platform == PlatformID.Win32NT) {
-				introspectionMethod.Text = "        [DllImport (@\"" + description.Namespace + "__rosidl_typesupport_introspection_c.dll\")]\n" +
+				introspectionMethod.Text = "        [DllImport (@\"" + description.Namespace + "__rosidl_typesupport_fastrtps_c.dll\")]\n" +
 					"        public static extern IntPtr " + introspectionMethodName + "();";
 			}
 			MessageStruct.Members.Add(introspectionMethod);
@@ -324,11 +330,92 @@ namespace rosidl_generator_cs
 			freeMethod.Statements.Add(freeIteration);
 			MessageStruct.Members.Add(freeMethod);
 		}
-		/// <summary>
-		/// Adds all fields to the message wrapper class. This contains fields needed for the IDisposable Pattern and fields needed for caching nested types
-		/// </summary>
-		/// <param name="description">Description.</param>
-		private void AddMessageFields(MessageDescription description)
+
+	    /// <summary>
+	    /// Adds the implicit cast method to be able to cast objects to the struct class.
+	    /// </summary>
+        private void AddImplicitCastFromObject(MessageDescription description)
+	    {
+	        CodeSnippetTypeMember __cstm1 = new CodeSnippetTypeMember("\n\t\t\t\tpublic static "+description.StructName+" FromObject(object obj)");
+
+	        CodeSnippetTypeMember __cstm2 = new CodeSnippetTypeMember("\t\t\t\t{");
+
+	        CodeSnippetTypeMember __cstm3 = new CodeSnippetTypeMember("\t\t\t\t\treturn ("+description.StructName+")obj;");
+
+	        CodeSnippetTypeMember __cstm4 = new CodeSnippetTypeMember("\t\t\t\t}");
+
+	        MessageStruct.Members.Add(__cstm1);
+
+	        MessageStruct.Members.Add(__cstm2);
+
+	        MessageStruct.Members.Add(__cstm3);
+
+	        MessageStruct.Members.Add(__cstm4);
+        }
+
+	    /// <summary>
+	    /// Adds the Init method to initialize members.
+	    /// </summary>
+	    private void AddInitMethod()
+	    {
+	        CodeMemberMethod initMethod = new CodeMemberMethod();
+	        initMethod.Attributes = MemberAttributes.Public | MemberAttributes.Final;
+	        initMethod.Name = "Init";
+	        initMethod.ReturnType = new CodeTypeReference(typeof(void));
+
+	        initMethod.Comments.Add(new CodeCommentStatement("This method initializes every member to a default value"));
+	        CodeSnippetStatement initIteration = new CodeSnippetStatement();
+	        initIteration.Value =
+                "\n           	        Console.WriteLine(\"Init - \" + this.GetType());"+
+                "\n                     var type = this.GetType();" +
+	            "\n                     var publicItems = type.GetFields();"+
+                "\n                     var privateItems = type.GetFields(BindingFlags.Instance | BindingFlags.NonPublic);" +
+                "\n                     var totalItems = new FieldInfo[publicItems.Length + privateItems.Length];" +
+                "\n                     publicItems.CopyTo(totalItems, 0);" +
+                "\n                     privateItems.CopyTo(totalItems, publicItems.Length);" +
+                "\n                     foreach (var item in totalItems)" +
+                "\n                     {" +
+                "\n                         var itemType = item.FieldType;" +
+                "\n                         if (typeof(IntPtr) == itemType)" +
+                "\n                         {" +
+                "\n                             Console.WriteLine(\"Here1\");" +
+                "\n                         }" +
+                "\n                     " +
+                "\n                         var itemPublicItems = itemType.GetFields();" +
+	            "\n                         var itemPrivateItems = itemType.GetFields(BindingFlags.Instance | BindingFlags.NonPublic);" +
+	            "\n                     " +
+	            "\n                         var itemTotalItems = new FieldInfo[itemPublicItems.Length + itemPrivateItems.Length];" +
+	            "\n                         itemPublicItems.CopyTo(itemTotalItems, 0);" +
+	            "\n                         itemPrivateItems.CopyTo(itemTotalItems, itemPublicItems.Length);" +
+	            "\n                     " +
+	            "\n                         foreach (var itemSecondLevel in itemTotalItems)" +
+	            "\n                         {" +
+	            "\n                             var itemTypeSecondLevel = itemSecondLevel.FieldType;" +
+	            "\n                             if (typeof(IntPtr) == itemTypeSecondLevel)" +
+	            "\n                             {" +
+	            "\n                                 Console.WriteLine(\"Here2\");" +
+                "\n                                 Console.WriteLine(\"Name :\" +itemSecondLevel.Name);" +
+	            "\n                     " +
+	            "\n                                 var itemValue = item.GetValue(this);" +
+	            "\n                     " +
+	            "\n                                 itemSecondLevel.SetValue(itemValue, IntPtr.Zero);" +
+	            "\n                     " +
+	            "\n                                 object boxed = this;" +
+	            "\n                     " +
+	            "\n                                 item.SetValue(boxed, itemValue);" +
+	            "\n                     " +
+	            "\n                                 this = FromObject(boxed);" +
+	            "\n                             }" +
+	            "\n                         }" +
+	            "\n                     }";
+            initMethod.Statements.Add(initIteration);
+	        MessageStruct.Members.Add(initMethod);
+	    }
+        /// <summary>
+        /// Adds all fields to the message wrapper class. This contains fields needed for the IDisposable Pattern and fields needed for caching nested types
+        /// </summary>
+        /// <param name="description">Description.</param>
+        private void AddMessageFields(MessageDescription description)
 		{
 			//Boolean field for disposable pattern
 			CodeMemberField disposeField = new CodeMemberField();
@@ -373,7 +460,8 @@ namespace rosidl_generator_cs
 		{
 
 			CodeConstructor constructor = new CodeConstructor();
-			constructor.Name = description.Name;
+		    constructor.ChainedConstructorArgs.Add(new CodeSnippetExpression(""));
+            constructor.Name = description.Name;
 			constructor.Attributes = MemberAttributes.Public;
 			CodeParameterDeclarationExpression constructorParameter = new CodeParameterDeclarationExpression();
 			constructorParameter.Name = "_data";
@@ -383,9 +471,9 @@ namespace rosidl_generator_cs
 
 			CodeAssignStatement constructorStatement = new CodeAssignStatement(new CodeVariableReferenceExpression("__data"), new CodeVariableReferenceExpression("_data"));
 			constructor.Statements.Add(constructorStatement);
-			MessageClass.Members.Add(constructor);
+            MessageClass.Members.Add(constructor);
 
-			CodeConstructor emptyConstructor = new CodeConstructor();
+			/*CodeConstructor emptyConstructor = new CodeConstructor();
 			emptyConstructor.Name = description.Name;
 			emptyConstructor.Attributes = MemberAttributes.Public;
 			foreach (var item in description.Members)
@@ -396,7 +484,7 @@ namespace rosidl_generator_cs
 					emptyConstructor.Statements.Add(nestedCreateStatement);
 				}
 			}
-			MessageClass.Members.Add(emptyConstructor);
+			MessageClass.Members.Add(emptyConstructor);*/
 
 		}
 		/// <summary>
@@ -409,7 +497,7 @@ namespace rosidl_generator_cs
 			CodeMemberProperty dataProperty = new CodeMemberProperty();
 			dataProperty.Name = "Data";
 			dataProperty.Type = new CodeTypeReference(description.StructName);
-			dataProperty.Attributes = MemberAttributes.Public;
+			dataProperty.Attributes = MemberAttributes.Public | MemberAttributes.Final;
 			dataProperty.Comments.Add(new CodeCommentStatement("Returns the underlying struct which is wrapped by this class. This struct will be sent in the end"));
 
 			CodeMethodReturnStatement dataPropertyReturnStatement = new CodeMethodReturnStatement(new CodeVariableReferenceExpression("__data"));
@@ -429,44 +517,45 @@ namespace rosidl_generator_cs
 
 			//This method returns the data struct (I think a reference to it)
 			CodeMemberMethod getDataMethod = new CodeMemberMethod();
-			getDataMethod.Attributes = MemberAttributes.Public | MemberAttributes.Override;
+			getDataMethod.Attributes = MemberAttributes.Public | MemberAttributes.Final/*| MemberAttributes.Override*/;
 			getDataMethod.Name = "GetData";
 			CodeParameterDeclarationExpression getDataMethodParameter = new CodeParameterDeclarationExpression();
-			getDataMethodParameter.Name = "_data";
-			getDataMethodParameter.Direction = FieldDirection.Out;
-			getDataMethodParameter.Type = new CodeTypeReference(typeof(ValueType));
+			getDataMethodParameter.Name = "_ptr";
+			getDataMethodParameter.Type = new CodeTypeReference(typeof(IntPtr));
 
 			getDataMethod.Parameters.Add(getDataMethodParameter);
 
-			getDataMethod.Statements.Add(new CodeAssignStatement(new CodeVariableReferenceExpression("_data"), new CodeVariableReferenceExpression("__data")));
+            getDataMethod.Statements.Add(new CodeSnippetStatement("\t\t\tMarshal.StructureToPtr(this, _ptr, false);"));
+			//getDataMethod.Statements.Add(new CodeAssignStatement(new CodeVariableReferenceExpression("_data"), new CodeVariableReferenceExpression("__data")));
 
 			MessageClass.Members.Add(getDataMethod);
 
 
 			//And the set method
 			CodeMemberMethod setDataMethod = new CodeMemberMethod();
-			setDataMethod.Attributes = MemberAttributes.Public | MemberAttributes.Override;
+			setDataMethod.Attributes = MemberAttributes.Public | MemberAttributes.Final/*| MemberAttributes.Override*/;
 			setDataMethod.Name = "SetData";
 			CodeParameterDeclarationExpression setDataMethodParameter = new CodeParameterDeclarationExpression();
-			setDataMethodParameter.Name = "_data";
-			setDataMethodParameter.Direction = FieldDirection.Ref;
-			setDataMethodParameter.Type = new CodeTypeReference(typeof(ValueType));
+			setDataMethodParameter.Name = "_ptr";
+			setDataMethodParameter.Type = new CodeTypeReference(typeof(IntPtr));
 
 			setDataMethod.Parameters.Add(setDataMethodParameter);
+		    
+            setDataMethod.Statements.Add(new CodeSnippetStatement("\t\t\tvar structure = ("+description.Name+")Marshal.PtrToStructure(_ptr, typeof("+description.Name+"));"));
+            setDataMethod.Statements.Add(new CodeSnippetStatement("\t\t\tthis = structure;"));
+            //setDataMethod.Statements.Add(new CodeAssignStatement(new CodeVariableReferenceExpression("__data"), new CodeVariableReferenceExpression("(" + description.StructName + ")_data")));
 
-			setDataMethod.Statements.Add(new CodeAssignStatement(new CodeVariableReferenceExpression("__data"), new CodeVariableReferenceExpression("(" + description.StructName + ")_data")));
-
-			MessageClass.Members.Add(setDataMethod);
+            MessageClass.Members.Add(setDataMethod);
 
 			//And the dispose method
 			CodeMemberMethod disposeMethod = new CodeMemberMethod();
 			disposeMethod.Name = "Dispose";
-			disposeMethod.Attributes = MemberAttributes.Override | MemberAttributes.Family;
+			disposeMethod.Attributes = MemberAttributes.Public | MemberAttributes.Final /*| MemberAttributes.Override | MemberAttributes.Family*/;
 
-			CodeParameterDeclarationExpression disposeMethodParameter = new CodeParameterDeclarationExpression();
+			/*CodeParameterDeclarationExpression disposeMethodParameter = new CodeParameterDeclarationExpression();
 			disposeMethodParameter.Name = "disposing";
 			disposeMethodParameter.Type = new CodeTypeReference(typeof(bool));
-			disposeMethod.Parameters.Add(disposeMethodParameter);
+			disposeMethod.Parameters.Add(disposeMethodParameter);*/
 
 
 			CodeConditionStatement disposedCheckStatement = new CodeConditionStatement();
@@ -482,8 +571,8 @@ namespace rosidl_generator_cs
 			//And the SyncDataOut method
 			CodeMemberMethod syncDataOutMethod = new CodeMemberMethod();
 			syncDataOutMethod.Name = "SyncDataOut";
-			syncDataOutMethod.Attributes = MemberAttributes.Public | MemberAttributes.Override;
-			syncDataOutMethod.Comments.Add(new CodeCommentStatement("Needed to copy data from the struct in the class instance of the nested member the the real struct"));
+			syncDataOutMethod.Attributes = MemberAttributes.Public | MemberAttributes.Final/*| MemberAttributes.Override*/;
+            syncDataOutMethod.Comments.Add(new CodeCommentStatement("Needed to copy data from the struct in the class instance of the nested member the the real struct"));
 
 			foreach (var item in description.Members)
 			{
@@ -504,8 +593,8 @@ namespace rosidl_generator_cs
 			//SyncDataIn method
 			CodeMemberMethod syncDataInMethod = new CodeMemberMethod();
 			syncDataInMethod.Name = "SyncDataIn";
-			syncDataInMethod.Attributes = MemberAttributes.Public | MemberAttributes.Override;
-			syncDataInMethod.Comments.Add(new CodeCommentStatement("Needed to copy data from the real struct (that one that is stored in __data) to the struct in the class member of the nested type"));
+			syncDataInMethod.Attributes = MemberAttributes.Public | MemberAttributes.Final/*| MemberAttributes.Override*/;
+            syncDataInMethod.Comments.Add(new CodeCommentStatement("Needed to copy data from the real struct (that one that is stored in __data) to the struct in the class member of the nested type"));
 
 			foreach (var item in description.Members)
 			{
@@ -524,7 +613,67 @@ namespace rosidl_generator_cs
 			}
 			MessageClass.Members.Add(syncDataInMethod);
 
-		}
+            /*var initMethod = new CodeMemberMethod();
+		    initMethod.Name = "Init";
+            initMethod.Attributes = MemberAttributes.Public | MemberAttributes.Override;
+		    initMethod.Comments.Add(
+		        new CodeCommentStatement("This method initializes the members to a default value."));
+		    var statement = new CodeSnippetStatement
+		    {
+		        Value = "                   Console.WriteLine(\"Initializing "+description.Name+"\");\n" +
+                        "                   var items = this.GetType().GetMembers(BindingFlags.NonPublic | BindingFlags.Instance);\n" +
+                        "                   Console.WriteLine(\"Number of items : \" + items.Length);" +
+                        "                   foreach(var item in items)\n" +
+                        "                   {\n" +
+                        "                       Console.WriteLine(item.Name+\" : \"+item.MemberType);\n" +
+                        "                           if(item is PropertyInfo)\n" +
+                        "                           {\n" +
+                        "                               PropertyInfo propertyInfo = (PropertyInfo)item;\n" +
+                        "                               var instanceOfItem = propertyInfo.GetValue(this);\n" +
+                        "                               if(instanceOfItem is " + description.StructName + ")\n" +
+                        "                               {\n" +
+		                "                                   var castedInstance = (" + description.StructName + ") instanceOfItem;\n" +
+		                "                                  Console.WriteLine(\"Calling init (property)!\");\n" +
+		                "                                  castedInstance.Init();\n" +
+		                "                               }\n" +
+                        "                           }\n" +
+		                "                           else if(item is FieldInfo)\n" +
+		                "                           {\n" +
+                        "                               FieldInfo fieldInfo = (FieldInfo)item;\n" +
+		                "                               var instanceOfItem = fieldInfo.GetValue(this);\n" +
+                        "                               if(instanceOfItem is " + description.StructName + ")\n" +
+		                "                               {\n" +
+		                "                                   var castedInstance = ("+description.StructName+") instanceOfItem;\n" +
+                        "                                  Console.WriteLine(\"Calling init (field)!\");\n" +
+                        "                                  castedInstance.Init();\n" +
+		                "                               }\n" +
+		                "                           }\n" +
+                        "                           else\n" +
+                        "                           {\n" +
+                        "                               Console.WriteLine(\"Not a property or a field.\");\n" +
+                        "                           }\n" +
+                        "                   }"
+		    };
+		    initMethod.Statements.Add(statement);
+            MessageClass.Members.Add(initMethod);*/
+
+            var printMethod = new CodeMemberMethod();
+		    printMethod.Name = "PrintValue";
+		    printMethod.Attributes = MemberAttributes.Final | MemberAttributes.Public;
+		    foreach (var item in description.Members)
+		    {
+		        var itemName = item.Name;
+		        if (itemName.EndsWith("\r"))
+		        {
+		            itemName = itemName.Substring(0, itemName.Length - 1);
+		        }
+                var printStatement1 = new CodeSnippetStatement("\t\t\tConsole.WriteLine(\"Member : "+ itemName + "\");");
+                var printStatement2 = new CodeSnippetStatement("\t\t\tConsole.WriteLine(\"Value : \"+"+ itemName + ".ToString());");
+		        printMethod.Statements.Add(printStatement1);
+		        printMethod.Statements.Add(printStatement2);
+		    }
+		    MessageClass.Members.Add(printMethod);
+        }
 		/// <summary>
 		/// Adds methods to the wrapper class for accessing simple fields like integers
 		/// </summary>
@@ -538,7 +687,7 @@ namespace rosidl_generator_cs
 				{
 					CodeMemberProperty simpleAccessProperty = new CodeMemberProperty();
 					simpleAccessProperty.Name = item.Name;
-					simpleAccessProperty.Attributes = MemberAttributes.Public;
+					simpleAccessProperty.Attributes = MemberAttributes.Public | MemberAttributes.Final;
 					simpleAccessProperty.Type = new CodeTypeReference(item.MemberType);
 					//Some extra treatment for strings, they need to be handled like arrays but are still simple types
 					//TODO Let strings behave like an array ?
@@ -580,7 +729,7 @@ namespace rosidl_generator_cs
 				{
 					CodeMemberProperty arrayAccessProperty = new CodeMemberProperty();
 					arrayAccessProperty.Name = item.Name;
-					arrayAccessProperty.Attributes = MemberAttributes.Public;
+					arrayAccessProperty.Attributes = MemberAttributes.Public | MemberAttributes.Final;
 					//Some extra stuff for string arrays
 					string dataAccessMethodName = "Array";
 					if (item.MemberType.ToLower().Contains("string"))
@@ -612,7 +761,7 @@ namespace rosidl_generator_cs
 				{
 					CodeMemberProperty fixedArrayAccessProperty = new CodeMemberProperty();
 					fixedArrayAccessProperty.Name = item.Name;
-					fixedArrayAccessProperty.Attributes = MemberAttributes.Public;
+					fixedArrayAccessProperty.Attributes = MemberAttributes.Public | MemberAttributes.Final;
 
 					//TODO Probably some stuff for strings is needed here
 					string fixedArrayType = item.MemberType + "[]";
@@ -652,7 +801,7 @@ namespace rosidl_generator_cs
 				{
 					CodeMemberProperty arrayAccessProperty = new CodeMemberProperty();
 					arrayAccessProperty.Name = item.Name;
-					arrayAccessProperty.Attributes = MemberAttributes.Public;
+					arrayAccessProperty.Attributes = MemberAttributes.Public | MemberAttributes.Final;
 				}
 			}
 
@@ -669,7 +818,7 @@ namespace rosidl_generator_cs
 				{
 					CodeMemberProperty nestedTypeAccessProperty = new CodeMemberProperty();
 					nestedTypeAccessProperty.Name = item.Name;
-					nestedTypeAccessProperty.Attributes = MemberAttributes.Public;
+					nestedTypeAccessProperty.Attributes = MemberAttributes.Public | MemberAttributes.Final;
 					nestedTypeAccessProperty.Type = new CodeTypeReference(item.MemberType.Remove(item.MemberType.Length - 2, 2));
 
 					CodeMethodReturnStatement nestedTypeReturnStatement = new CodeMethodReturnStatement(new CodeVariableReferenceExpression("__" + item.Name));

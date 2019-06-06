@@ -1,0 +1,6 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
+    <StartArguments>-m D:\Work\ros2\src\ros2\rosidl\rosidl_generator_cs\msg\Nested.msg test_package_name D:\Work\ros2\src\build\rosidl_generator_cs\rosidl_generator_cs\rosidl_generator_cs\output.cs</StartArguments>
+  </PropertyGroup>
+</Project>
